@@ -1,0 +1,65 @@
+
+<!DOCTYPE html>
+<html>
+<body style="margin: 0; overflow: hidden;">
+  <div id="score" style="position: absolute; top: 10px; left: 10px; color: white; font-family: sans-serif; font-size: 20px;">Score: 0</div>
+  <script src="https://cdnjs.cloudflare.com"></script>
+  <script src="https://cdn.socket.io"></script>
+
+  <script>
+    // 1. Connect to your Replit server
+    const socket = io('REPLACE_WITH_YOUR_REPLIT_URL'); 
+
+    // 2. Setup 3D World (Three.js)
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB); // Sky blue
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Voxel Floor
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(100, 1, 100), new THREE.MeshBasicMaterial({color: 0x555555}));
+    floor.position.y = -1;
+    scene.add(floor);
+
+    // My Player (Blocky)
+    const myCube = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshBasicMaterial({color: 0x00ff00}));
+    scene.add(myCube);
+    camera.position.set(0, 5, 10);
+    camera.lookAt(myCube.position);
+
+    let enemies = {};
+
+    // 3. Movement
+    window.addEventListener('keydown', (e) => {
+      if(e.key === 'w') myCube.position.z -= 0.5;
+      if(e.key === 's') myCube.position.z += 0.5;
+      if(e.key === 'a') myCube.position.x -= 0.5;
+      if(e.key === 'd') myCube.position.x += 0.5;
+      socket.emit('move', {x: myCube.position.x, z: myCube.position.z});
+    });
+
+    // 4. Update other players
+    socket.on('state', (serverPlayers) => {
+      for (let id in serverPlayers) {
+        if (id !== socket.id) {
+          if (!enemies[id]) {
+            enemies[id] = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshBasicMaterial({color: serverPlayers[id].color}));
+            scene.add(enemies[id]);
+          }
+          enemies[id].position.set(serverPlayers[id].x, 0, serverPlayers[id].z);
+        }
+      }
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      camera.position.x = myCube.position.x;
+      camera.position.z = myCube.position.z + 10;
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
